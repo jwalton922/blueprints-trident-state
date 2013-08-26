@@ -38,6 +38,7 @@ public class TrackEventBatchSpout implements IBatchSpout {
     private Random randomGenerator;
     private String[] sentences;
     private long tweetId = 0;
+    private List<String> randomPropertyList = new ArrayList<String>();
     private Map<String, City> cityMap;
     private List<City> cities = new ArrayList<City>();
     private List<Vector<City>> cityPairs = new ArrayList<Vector<City>>();
@@ -51,6 +52,9 @@ public class TrackEventBatchSpout implements IBatchSpout {
         CityLocationReader cityReader = new CityLocationReader();
         this.cityMap = cityReader.getCitiesMap();
         this.batchSize = batchSize;
+        randomPropertyList.add("TYPE 1");
+        randomPropertyList.add("TYPE 2");
+        randomPropertyList.add("TYPE 3");
     }
 
     private int generateRandomIndex(int indexLength) {
@@ -192,6 +196,8 @@ public class TrackEventBatchSpout implements IBatchSpout {
             event.put("TIME", p.getTimestamp());
             event.put("LATITUDE", p.getLat());
             event.put("LONGITUDE", p.getLon());
+            
+            event.put("RANDOM_PROP", randomPropertyList.get(generateRandomIndex(randomPropertyList.size())));
             positionIndex++;
 
             return event;
