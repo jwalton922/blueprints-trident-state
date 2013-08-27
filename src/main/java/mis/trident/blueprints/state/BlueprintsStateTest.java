@@ -18,7 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
-import mis.holocron.HolocronObject;
 import mis.track.data.generator.City;
 import mis.track.data.generator.CityLocationReader;
 import mis.track.data.generator.Position;
@@ -108,25 +107,25 @@ public class BlueprintsStateTest {
 
         SerializableMongoDBGraph graph = new SerializableMongoDBGraph("localhost", 27017);
 
-        StateFactory stateFactory = BlueprintsState.transactional(graph, HolocronObject.class);
-        Config conf = new Config();
-        conf.setMaxSpoutPending(5);
-        if (args.length == 0) {
-            LocalDRPC drpc = new LocalDRPC();
-            LocalCluster cluster = new LocalCluster();
-            cluster.submitTopology("wordCounter", conf, buildTopology(drpc, stateFactory));
-            for (int i = 0; i < 100; i++) {
-                long startDate = System.nanoTime();
-                String result = drpc.execute("words", "to");
-                long endDate = System.nanoTime() - startDate;
-                System.out.println("DRPC RESULT: " + result + " took: " + endDate / 1000000);
-                Thread.sleep(100);
-            }
-            cluster.shutdown();
-        } else {
-            conf.setNumWorkers(3);
-            StormSubmitter.submitTopology(args[0], conf, buildTopology(null, stateFactory));
-        }
+//        StateFactory stateFactory = BlueprintsState.transactional(graph, HolocronObject.class);
+//        Config conf = new Config();
+//        conf.setMaxSpoutPending(5);
+//        if (args.length == 0) {
+//            LocalDRPC drpc = new LocalDRPC();
+//            LocalCluster cluster = new LocalCluster();
+//            cluster.submitTopology("wordCounter", conf, buildTopology(drpc, stateFactory));
+//            for (int i = 0; i < 100; i++) {
+//                long startDate = System.nanoTime();
+//                String result = drpc.execute("words", "to");
+//                long endDate = System.nanoTime() - startDate;
+//                System.out.println("DRPC RESULT: " + result + " took: " + endDate / 1000000);
+//                Thread.sleep(100);
+//            }
+//            cluster.shutdown();
+//        } else {
+//            conf.setNumWorkers(3);
+//            StormSubmitter.submitTopology(args[0], conf, buildTopology(null, stateFactory));
+//        }
     }
 
 

@@ -44,11 +44,11 @@
             <artifactId>storm</artifactId>
             <version>0.8.2</version>
         </dependency>
-        <dependency>
+<!--        <dependency>
             <groupId>mis</groupId>
             <artifactId>Holocron</artifactId>
             <version>1.0-SNAPSHOT</version>
-        </dependency>
+        </dependency>-->
         <dependency>
             <groupId>be.datablend</groupId>
             <artifactId>blueprints-mongodb-graph</artifactId>
