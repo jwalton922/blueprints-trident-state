@@ -4,35 +4,18 @@
  */
 package mis.trident.blueprints.state;
 
-import backtype.storm.Config;
-import backtype.storm.LocalCluster;
 import backtype.storm.LocalDRPC;
-import backtype.storm.StormSubmitter;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.tuple.Fields;
 import com.sjoerdmulder.trident.mongodb.MongoState;
-import com.tinkerpop.blueprints.Vertex;
+import com.tinkerpop.blueprints.Graph;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
-import mis.track.data.generator.City;
-import mis.track.data.generator.CityLocationReader;
-import mis.track.data.generator.Position;
-import mis.track.data.generator.Track;
-import mis.track.data.generator.TrackGenerator;
+import mis.trident.blueprints.state.BlueprintsState.Options;
 import storm.trident.TridentTopology;
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.operation.builtin.FilterNull;
-import storm.trident.operation.builtin.MapGet;
-import storm.trident.operation.builtin.Sum;
 import storm.trident.state.StateFactory;
-import storm.trident.state.TransactionalValue;
-import storm.trident.testing.FixedBatchSpout;
-import storm.trident.testing.Split;
-import storm.trident.tuple.TridentTuple;
+import storm.trident.state.StateType;
 
 /**
  *
@@ -41,7 +24,7 @@ import storm.trident.tuple.TridentTuple;
 public class BlueprintsStateTest {
 
     public static StormTopology buildTopology(LocalDRPC drpc, StateFactory stateFactory) {
-        SerializableMongoDBGraph graph = new SerializableMongoDBGraph("localhost", 27017);
+        //SerializableMongoDBGraph graph = new SerializableMongoDBGraph("localhost", 27017);
 //        TrackGenerator trackGenerator = new TrackGenerator();
 //        CityLocationReader cityReader = new CityLocationReader();
 //        Map<String, City> cityMap = cityReader.getCitiesMap();
@@ -68,7 +51,9 @@ public class BlueprintsStateTest {
 
         TridentTopology topology = new TridentTopology();
         topology.build();
-        StateFactory factory = BlueprintsState.nonTransactional(graph, Map.class);
+//        StateType.NON_TRANSACTIONAL;
+        Graph graph = null;
+        StateFactory factory = new BlueprintsState.Factory<Map>(graph, StateType.NON_TRANSACTIONAL, Map.class, new Options());
         
         StateFactory mongoFactory = MongoState.transactional("mongodb://127.0.0.1/test.words", Map.class);
         

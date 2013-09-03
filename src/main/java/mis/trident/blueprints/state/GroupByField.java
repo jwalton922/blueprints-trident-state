@@ -4,11 +4,13 @@
  */
 package mis.trident.blueprints.state;
 
+import java.io.Serializable;
+
 /**
  *
  * @author jwalton
  */
-public class GroupByField {
+public class GroupByField implements Serializable{
     
     private String key;
     private Object value;
@@ -36,7 +38,7 @@ public class GroupByField {
     
     @Override
     public String toString(){
-        return key+"="+this.value.toString();
+        return "\""+key+"="+this.value.toString()+"\"";
     }
     
     @Override

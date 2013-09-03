@@ -5,36 +5,39 @@
 package mis.trident.blueprints.state;
 
 import backtype.storm.task.IMetricsContext;
+import com.tinkerpop.blueprints.Graph;
+
 import com.tinkerpop.blueprints.GraphQuery;
 import com.tinkerpop.blueprints.Vertex;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import mis.track.data.generator.Position;
+import org.apache.log4j.Logger;
 import storm.trident.state.OpaqueValue;
 import storm.trident.state.State;
 import storm.trident.state.StateFactory;
 import storm.trident.state.StateType;
 import storm.trident.state.TransactionalValue;
+import storm.trident.state.ValueUpdater;
 import storm.trident.state.map.CachedMap;
 import storm.trident.state.map.IBackingMap;
 import storm.trident.state.map.MapState;
 import storm.trident.state.map.NonTransactionalMap;
 import storm.trident.state.map.OpaqueMap;
-import storm.trident.state.map.SnapshottableMap;
 import storm.trident.state.map.TransactionalMap;
 
 /**
  *
  * @author jwalton
  */
-public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
+public class BlueprintsState<T> implements IBackingMap<T>, Serializable, MapState<T> {
 
+    private static Logger log = Logger.getLogger(BlueprintsState.class);
     private Class<T> type;
-    private SerializableMongoDBGraph graph;
+    private Graph graph;
     private String host;
     private int port;
     public static String TRANSACTION_ID = "TRANSACTION_ID";
@@ -48,38 +51,38 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
         String globalKey = "$GLOBAL$";
     }
 
-    public static <T> StateFactory opaque(SerializableMongoDBGraph graph, Class<T> entityClass) {
-        return opaque(graph, entityClass, new Options());
-    }
+//    public static <T> StateFactory opaque(SerializableMongoDBGraph graph, Class<T> entityClass) {
+//        return opaque(graph, entityClass, new Options());
+//    }
+//
+//    public static <T> StateFactory opaque(SerializableMongoDBGraph graph, Class<T> entityClass, Options opts) {
+//        return new Factory<T>(graph, StateType.OPAQUE, entityClass, opts);
+//    }
+//
+//    public static <T> StateFactory transactional(SerializableMongoDBGraph graph, Class<T> entityClass) {
+//        return transactional(graph, entityClass, new Options());
+//    }
+//
+//    public static <T> StateFactory transactional(SerializableMongoDBGraph graph, Class<T> entityClass, Options opts) {
+//        return new Factory<T>(graph, StateType.TRANSACTIONAL, entityClass, opts);
+//    }
+//
+//    public static <T> StateFactory nonTransactional(SerializableMongoDBGraph graph, Class<T> entityClass) {
+//        return nonTransactional(graph, entityClass, new Options());
+//    }
+//
+//    public static <T> StateFactory nonTransactional(SerializableMongoDBGraph graph, Class<T> entityClass, Options opts) {
+//        return new Factory<T>(graph, StateType.NON_TRANSACTIONAL, entityClass, opts);
+//    }
 
-    public static <T> StateFactory opaque(SerializableMongoDBGraph graph, Class<T> entityClass, Options opts) {
-        return new Factory<T>(graph, StateType.OPAQUE, entityClass, opts);
-    }
-
-    public static <T> StateFactory transactional(SerializableMongoDBGraph graph, Class<T> entityClass) {
-        return transactional(graph, entityClass, new Options());
-    }
-
-    public static <T> StateFactory transactional(SerializableMongoDBGraph graph, Class<T> entityClass, Options opts) {
-        return new Factory<T>(graph, StateType.TRANSACTIONAL, entityClass, opts);
-    }
-
-    public static <T> StateFactory nonTransactional(SerializableMongoDBGraph graph, Class<T> entityClass) {
-        return nonTransactional(graph, entityClass, new Options());
-    }
-
-    public static <T> StateFactory nonTransactional(SerializableMongoDBGraph graph, Class<T> entityClass, Options opts) {
-        return new Factory<T>(graph, StateType.NON_TRANSACTIONAL, entityClass, opts);
-    }
-
-    protected static class Factory<T> implements StateFactory {
+    public static class Factory<T> implements StateFactory {
 
         private final StateType type;
-        private final SerializableMongoDBGraph graph;
+        private final Graph graph;
         private final Class<T> entityClass;
         private final Options opts;
 
-        public Factory(SerializableMongoDBGraph graph, StateType type, Class<T> entityClass, Options opts) {
+        public Factory(Graph graph, StateType type, Class<T> entityClass, Options opts) {
             this.type = type;
             this.graph = graph;
             this.entityClass = entityClass;
@@ -88,193 +91,68 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
 
         @Override
         public State makeState(Map conf, IMetricsContext context, int partitionIndex, int numPartitions) {
-            MapState<T> mapState;
-            switch (type) {
-                case NON_TRANSACTIONAL:
-                    mapState = buildNonTransactional();
-                    break;
-                case TRANSACTIONAL:
-                    mapState = buildTransactional();
-                    break;
-                case OPAQUE:
-                    mapState = buildOpaque();
-                    break;
-                default:
-                    throw new RuntimeException("Unknown state type: " + type);
-            }
-
-            return new SnapshottableMap<T>(mapState, Arrays.<Object>asList(opts.globalKey));
-        }
-
-        private MapState<T> buildTransactional() {
-            BlueprintsState<TransactionalValue> state = new BlueprintsState<TransactionalValue>(graph, TransactionalValue.class);
-            CachedMap<TransactionalValue> cachedMap = new CachedMap<TransactionalValue>(state, opts.localCacheSize);
-            return TransactionalMap.build(cachedMap);
-        }
-
-        private MapState<T> buildOpaque() {
-            BlueprintsState<OpaqueValue> state = new BlueprintsState<OpaqueValue>(graph, OpaqueValue.class);
-            CachedMap<OpaqueValue> cachedMap = new CachedMap<OpaqueValue>(state, opts.localCacheSize);
-            return OpaqueMap.build(cachedMap);
-        }
-
-        private MapState<T> buildNonTransactional() {
+//            MapState<T> mapState;
             BlueprintsState<T> state = new BlueprintsState<T>(graph, entityClass);
-            CachedMap<T> cachedMap = new CachedMap<T>(state, opts.localCacheSize);
-            return NonTransactionalMap.build(cachedMap);
+//            switch (type) {
+//                case NON_TRANSACTIONAL:
+//                    mapState = buildNonTransactional();
+//
+//                    break;
+//                case TRANSACTIONAL:
+//                    mapState = buildTransactional();
+//                    break;
+//                case OPAQUE:
+//                    mapState = buildOpaque();
+//                    break;
+//                default:
+//                    throw new RuntimeException("Unknown state type: " + type);
+//            }
+
+//            return new SnapshottableMap<T>(mapState, Arrays.<Object>asList(opts.globalKey));
+            return state;
         }
+
+//        private MapState<T> buildTransactional() {
+//            BlueprintsState<TransactionalValue> state = new BlueprintsState<TransactionalValue>(graph, TransactionalValue.class);
+//            CachedMap<TransactionalValue> cachedMap = new CachedMap<TransactionalValue>(state, opts.localCacheSize);
+//            return TransactionalMap.build(cachedMap);
+//        }
+//
+//        private MapState<T> buildOpaque() {
+//            BlueprintsState<OpaqueValue> state = new BlueprintsState<OpaqueValue>(graph, OpaqueValue.class);
+//            CachedMap<OpaqueValue> cachedMap = new CachedMap<OpaqueValue>(state, opts.localCacheSize);
+//            return OpaqueMap.build(cachedMap);
+//        }
+//
+//        private MapState<T> buildNonTransactional() {
+//            BlueprintsState<T> state = new BlueprintsState<T>(graph, entityClass);
+//            CachedMap<T> cachedMap = new CachedMap<T>(state, opts.localCacheSize);
+//            return NonTransactionalMap.build(cachedMap);
+//        }
     }
 
-    protected BlueprintsState(SerializableMongoDBGraph graph, Class<T> type) {
+    protected BlueprintsState(Graph graph, Class<T> type) {
         this.graph = graph;
         this.type = type;
     }
 
-//    @Override
-//    public List<T> multiGet(List<List<Object>> keys) {
-//        System.out.println("Multiget called in Blueprints State");
-//        List<T> returns = new ArrayList<T>(keys.size());
-//
-//        for (List<Object> key : keys) {
-//            int count = 0;
-////            Map<String, Object> searchParams = new HashMap<String, Object>();
-//            GraphQuery query = graph.getGraph().query();
-//            for (Object keyObject : key) {
-////                System.out.println("Searching for " + keyObject.toString());
-//                if (keyObject instanceof Map) {
-////                    System.out.println("Key object is a map");
-//                    Map<String, Object> keyObjectMap = (Map) keyObject;
-//                    for (String mapKey : keyObjectMap.keySet()) {
-//                        System.out.println("Adding this to query: "+mapKey+" = "+ keyObjectMap.get(mapKey));
-//                        query.has(mapKey, keyObjectMap.get(mapKey));
-//                    }
-//                } else {
-//                    searchParams.put(keyObject.toString(), true);
-//                    query.has(keyObject.toString(), Boolean.TRUE);
-//                }
-//                System.out.println("Performing query");
-//                Iterable<Vertex> vertices = query.vertices();
-//
-//                for (Vertex v : vertices) {
-//                    count++;
-//                    if (TransactionalValue.class.equals(type)) {
-//                        Long tId = v.getProperty(TRANSACTION_ID);
-//                        T value = v.getProperty(TRIDENT_VALUE);
-//                        T transValue = (T) new TransactionalValue<T>(tId, value);
-//                        returns.add(transValue);
-//                    } else if (OpaqueValue.class.equals(type)) {
-//                        Long tId = v.getProperty(TRANSACTION_ID);
-//                        T value = v.getProperty(TRIDENT_VALUE);
-//                        T opaqueValue = (T) new OpaqueValue<T>(tId, value);
-//                        returns.add(opaqueValue);
-//                    } else {
-//                        returns.add((T) v.getProperty(TRIDENT_VALUE));
-//                    }
-//                }
-//                System.out.println("Found "+count+" results");
-//            }
-//            if (count == 0) {
-//                returns.add(null);
-//            } else {
-//                System.out.println("Non null value being returned!");
-//            }
-//
-//        }
-//
-//        System.out.println("Returning " + returns.size() + " objects for multiget");
-//        return returns;
-//    }
-    public List<T> multiGetOld(List<List<Object>> keys) {
-        System.out.println("Multiget called in Blueprints State. Arg size = " + keys.size());
-        List<T> returns = new ArrayList<T>(keys.size());
-//        Set<String> objects = new HashSet<String>();
-        Map<String, T> objectMap = new HashMap<String, T>();
-        for (List<Object> key : keys) {
-            int count = 0;
-//            Map<String, Object> searchParams = new HashMap<String, Object>();
-
-            String identifier = "";
-            System.out.println("Inner key size: " + key.size());
-            for (Object keyObject : key) {
-                System.out.println("2Searching for " + keyObject.toString());
-            }
-            for (Object keyObject : key) {
-                GraphQuery query = graph.getGraph().query();
-//                System.out.println("Searching for " + keyObject.toString());
-
-                if (keyObject instanceof Map) {
-                    System.out.println("Key object is a map");
-                    Map<String, Object> keyObjectMap = (Map) keyObject;
-                    identifier = (String) keyObjectMap.get("OBJECT_IDENTIFIER");
-                    query.has("OBJECT_IDENTIFIER", identifier);
-
-                    System.out.println("Searching for OBJECT_IDENTIFIER = " + identifier);
-                } else {
-                    query.has("OBJECT_IDENTIFIER", key.toString());
-                }
-//                System.out.println("Performing query");
-                Iterable<Vertex> vertices = query.vertices();
-
-
-                for (Vertex v : vertices) {
-                    count++;
-                    for (String vKey : v.getPropertyKeys()) {
-                        System.out.println("Found vertex prop: " + vKey + " = " + v.getProperty(vKey));
-                    }
-                    if (TransactionalValue.class.equals(type)) {
-                        Long tId = v.getProperty(TRANSACTION_ID);
-                        T value = v.getProperty(TRIDENT_VALUE);
-                        if (count <= 1) {
-                            System.out.println("Found transactional value: " + value.toString() + " of type: " + value.getClass().getName());
-                        }
-                        T transValue = (T) new TransactionalValue<T>(tId, value);
-                        returns.add(transValue);
-                    } else if (OpaqueValue.class.equals(type)) {
-                        Long tId = v.getProperty(TRANSACTION_ID);
-                        T value = v.getProperty(TRIDENT_VALUE);
-                        T opaqueValue = (T) new OpaqueValue<T>(tId, value);
-                        returns.add(opaqueValue);
-                    } else {
-                        if (!objectMap.containsKey(v.getProperty("OBJECT_IDENTIFIER").toString())) {
-                            T object = (T) v.getProperty(TRIDENT_VALUE);
-                            returns.add(object);
-                            objectMap.put(v.getProperty("OBJECT_IDENTIFIER").toString(), object);
-                        } else {
-                            System.out.println("Already loaded object");
-                            returns.add(objectMap.get(v.getProperty("OBJECT_IDENTIFIER").toString()));
-                        }
-
-                    }
-                }
-
-//                System.out.println("Found " + count + " results");
-            }
-            if (objectMap.get(identifier) == null) {
-                objectMap.put(identifier, (T) new HashMap<String, Object>());
-            }
-            if (count == 0) {
-                returns.add(objectMap.get(identifier));
-            } else {
-//                System.out.println("Non null value being returned!");
-            }
-
-        }
-
-//        System.out.println("Returning " + returns.size() + " objects for multiget");
-        return returns;
-    }
-
+    /**
+     *
+     * @param keys
+     * @return
+     */
     @Override
     public List<T> multiGet(List<List<Object>> keys) {
-        System.out.println("Multiget called in Blueprints State. Arg size = " + keys.size());
+        long start = System.currentTimeMillis();
+        log.debug("Multiget called in Blueprints State. Arg size = " + keys.size());
         List<T> returns = new ArrayList<T>(keys.size());
 //        Set<String> objects = new HashSet<String>();
         Map<String, List<T>> objectMap = new HashMap<String, List<T>>();
         for (List<Object> keyList : keys) {
             int count = 0;
 //            Map<String, Object> searchParams = new HashMap<String, Object>();
-            GraphQuery query = graph.getGraph().query();
-            //System.out.println("Inner key size: " + keyList.size());
+            GraphQuery query = graph.query();
+            //log.debug("Inner key size: " + keyList.size());
             String index = ""; //index holds a string of all query terms so we can return it instead
             for (Object keyObject : keyList) {
                 if (keyObject instanceof GroupByField) {
@@ -282,18 +160,18 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
                     query.has(key.getKey(), key.getValue());
                     index += key.toString();
                 } else {
-                    System.out.println("Do not know how to create query from object type: " + keyObject.getClass().getName() + " value: " + keyObject.toString());
+                    log.debug("Do not know how to create query from object type: " + keyObject.getClass().getName() + " value: " + keyObject.toString());
                 }
             }
             //make sure we have some query parameters, otherwise blueprints returns all objects
             if (index.length() == 0) {
-                System.out.println("Did not find any index terms to search on. Returning null");
+                log.debug("Did not find any index terms to search on. Returning null");
                 returns.add(null);
                 continue;
             }
             //if already loaded object from blueprints, return that instead of querying
             if (objectMap.get(index) != null) {
-                //System.out.println("Already loaded object for "+index+", skipping db retrieval");
+                //log.debug("Already loaded object for "+index+", skipping db retrieval");
                 returns.addAll(objectMap.get(index));
                 continue;
             }
@@ -302,13 +180,13 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
             for (Vertex v : vertices) {
                 count++;
                 for (String vKey : v.getPropertyKeys()) {
-                    //System.out.println("Found vertex prop: " + vKey + " = " + v.getProperty(vKey));
+                    //log.debug("Found vertex prop: " + vKey + " = " + v.getProperty(vKey));
                 }
                 if (TransactionalValue.class.equals(type)) {
                     Long tId = v.getProperty(TRANSACTION_ID);
                     T value = v.getProperty(TRIDENT_VALUE);
                     if (count <= 1) {
-                        System.out.println("Found transactional value: " + value.toString() + " of type: " + value.getClass().getName());
+                        log.debug("Found transactional value: " + value.toString() + " of type: " + value.getClass().getName());
                     }
                     T transValue = (T) new TransactionalValue<T>(tId, value);
                     returns.add(transValue);
@@ -321,16 +199,16 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
                     T object = (T) v.getProperty(TRIDENT_VALUE);
                     //returns.add(object);
                     foundObjects.add(object);
-                    //System.out.println("First load for object: "+index);
+                    //log.debug("First load for object: "+index);
                     //objectMap.put(index, object);
                 }
             }
             if (count == 0) {
-                //System.out.println("Found no object to return for: " + index + "!");
+                //log.debug("Found no object to return for: " + index + "!");
                 returns.add(null);
             } else {
                 if (foundObjects.size() > 1) {
-                    System.out.println("BlueprintsState found " + foundObjects.size() + " blueprints objects"+" index = "+index);
+                    log.debug("BlueprintsState found " + foundObjects.size() + " blueprints objects" + " index = " + index);
                 }
                 returns.addAll(foundObjects);
                 objectMap.put(index, foundObjects);
@@ -340,7 +218,9 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
 
         } //end for keyList in keys
 
-//        System.out.println("Returning " + returns.size() + " objects for multiget");
+
+        long time = System.currentTimeMillis() - start;
+        log.debug("Returning " + returns.size() + " objects for multiget in " + time + " ms");
         return returns;
     }
 
@@ -364,11 +244,12 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
 
     @Override
     public void multiPut(List<List<Object>> keys, List<T> vals) {
-        System.out.println("Multiput called in Blueprints State: " + vals.size() + " values: " + keys.size() + " keys");
+        long start = System.currentTimeMillis();
+        log.debug("Multiput called in Blueprints State: " + vals.size() + " values: " + keys.size() + " keys");
         for (int i = 0; i < keys.size(); i++) {
             T value = vals.get(i);
             List<Object> keyList = keys.get(i);
-            GraphQuery query = graph.getGraph().query();
+            GraphQuery query = graph.query();
             List<GroupByField> indices = new ArrayList<GroupByField>();
             for (int j = 0; j < keyList.size(); j++) {
                 Object keyObject = keyList.get(j);
@@ -377,7 +258,7 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
                     indices.add(key);
                     query.has(key.getKey(), key.getValue());
                 } else {
-                    System.out.println("Unknown key type: " + keyObject.getClass().getName() + " value: " + keyObject.toString());
+                    log.debug("Unknown key type: " + keyObject.getClass().getName() + " value: " + keyObject.toString());
                 }
             }
 
@@ -388,62 +269,114 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
                 updateVertex(vertex, value);
             }
             if (!objectExists) {
-                Vertex vertex = graph.getGraph().addVertex(null);
+                Vertex vertex = graph.addVertex(null);
                 for (int z = 0; z < indices.size(); z++) {
                     vertex.setProperty(indices.get(z).getKey(), indices.get(z).getValue());
                 }
                 updateVertex(vertex, value);
             }
         }
+
+        long time = System.currentTimeMillis() - start;
+        log.debug("multiput finished in " + time + " ms");
     }
 
-    public void multiPutOld(List<List<Object>> keys, List<T> vals) {
-        System.out.println("Multiput called in Blueprints State: " + vals.size() + " values: " + keys.size() + " keys");
+    public List<T> multiUpdate(List<List<Object>> keys, List<ValueUpdater> updaters) {
+        log.debug("multiUpdate called Have " + keys.size() + " keys and " + updaters.size() + " updaters");
+        List<T> updatedValues = new ArrayList<T>();
+        Map<String, List<T>> objectMap = new HashMap<String, List<T>>();
         for (int i = 0; i < keys.size(); i++) {
-            List<Object> innerKeys = keys.get(i);
-            T value = vals.get(i);
-            System.out.println("put inner key size: " + innerKeys.size() + " value: " + value.toString() + " of type: " + value.getClass().getName());
-            for (int j = 0; j < innerKeys.size(); j++) {
-
-                Object innerKey = innerKeys.get(j);
-                if (innerKey instanceof Map) {
-                    Map<String, Object> event = (Map<String, Object>) innerKey;
-                    String identifier = (String) event.get("TRACKID");
-                    GraphQuery query = graph.getGraph().query();
-                    query.has("OBJECT_IDENTIFIER", identifier);
-
-                    Iterable<Vertex> vertices = query.vertices();
-                    boolean objectExists = false;
-                    for (Vertex vertex : vertices) {
-                        objectExists = true;
-                        updateVertex(identifier, value, vertex);
-                    }
-                    if (!objectExists) {
-                        Vertex v = graph.getGraph().addVertex(null);
-                        updateVertex(identifier, value, v);
-                    }
-
-
+            List<Object> keyList = keys.get(i);
+            ValueUpdater<T> updater = updaters.get(i);
+            //log.trace("Updater class: " + updater.getClass().getName());
+            int count = 0;
+            GraphQuery query = graph.query();
+            String index = ""; //index holds a string of all query terms so we can return it instead
+            for (Object keyObject : keyList) {
+                if (keyObject instanceof GroupByField) {
+                    GroupByField key = (GroupByField) keyObject;
+                    query.has(key.getKey(), key.getValue());
+                    index += key.toString();
                 } else {
-                    String identifier = innerKey.toString();
-                    GraphQuery query = graph.getGraph().query();
-                    query.has("OBJECT_IDENTIFIER", identifier);
-
-                    Iterable<Vertex> vertices = query.vertices();
-                    boolean objectExists = false;
-                    for (Vertex vertex : vertices) {
-                        objectExists = true;
-                        updateVertex(identifier, value, vertex);
-                    }
-                    if (!objectExists) {
-                        Vertex v = graph.getGraph().addVertex(null);
-                        updateVertex(identifier, value, v);
-                    }
+                    log.debug("Do not know how to create query from object type: " + keyObject.getClass().getName() + " value: " + keyObject.toString());
                 }
-
+            }
+            //make sure we have some query parameters, otherwise blueprints returns all objects
+            if (index.length() == 0) {
+               // log.debug("Did not find any index terms to search on. Returning null");
+                T updatedValue = updater.update(null);
+                updatedValues.add(updatedValue);
+                continue;
+            }
+            //log.trace("Index: " + index);
+            //if already loaded object from blueprints, return that instead of querying
+            if (objectMap.get(index) != null) {
+                //log.debug("Already loaded object for "+index+", skipping db retrieval");
+                updatedValues.addAll(objectMap.get(index));
+                continue;
+            }
+            Iterable<Vertex> vertices = query.vertices();
+            List<T> foundObjects = new ArrayList<T>();
+            for (Vertex v : vertices) {
+                count++;
+                for (String vKey : v.getPropertyKeys()) {
+                    //log.debug("Found vertex prop: " + vKey + " = " + v.getProperty(vKey));
+                }
+                if (TransactionalValue.class.equals(type)) {
+                    Long tId = v.getProperty(TRANSACTION_ID);
+                    T value = v.getProperty(TRIDENT_VALUE);
+                    if (count <= 1) {
+                        log.debug("Found transactional value: " + value.toString() + " of type: " + value.getClass().getName());
+                    }
+                    T transValue = (T) new TransactionalValue<T>(tId, value);
+                    T updatedValue = (T) updater.update(transValue);
+                    foundObjects.add(updatedValue);
+                } else if (OpaqueValue.class.equals(type)) {
+                    Long tId = v.getProperty(TRANSACTION_ID);
+                    T value = v.getProperty(TRIDENT_VALUE);
+                    T opaqueValue = (T) new OpaqueValue<T>(tId, value);
+                    foundObjects.add(opaqueValue);
+                } else {
+                    T object = (T) v.getProperty(TRIDENT_VALUE);
+                    T updatedValue = updater.update(object);
+                    //returns.add(object);
+                    foundObjects.add(updatedValue);
+                    //log.debug("First load for object: "+index);
+                    //objectMap.put(index, object);
+                }
+            }
+            if (count == 0) {
+                //log.debug("Found no object to return for: " + index + "!");
+                T updatedValue = updater.update(null);
+                foundObjects.add(updatedValue);
+                objectMap.put(index, foundObjects);
+                updatedValues.add(updatedValue);
+            } else {
+                if (foundObjects.size() > 1) {
+                    log.debug("BlueprintsState found " + foundObjects.size() + " updated blueprints objects" + " index = " + index);
+                }
+                updatedValues.addAll(foundObjects);
+                objectMap.put(index, foundObjects);
             }
 
-        }
+            List<List<Object>> writeKeys = new ArrayList<List<Object>>();
+            for (T updatedValue : updatedValues) {
+                writeKeys.add(keyList);
+            }
+            multiPut(writeKeys, updatedValues);
+
+        } //end for keyList in keys
+//        if (log.isTraceEnabled()) {
+//            for (T value : updatedValues) {
+//                if (value != null) {
+//                    log.trace("multiUpdate return: Updated value: " + value.toString());
+//                } else {
+//                    log.trace("multiUpdate return: Updated value: null");
+//                }
+//            }
+//        }
+        return updatedValues;
+
     }
 
     private void updateVertex(String identifier, T value, Vertex v) {
@@ -466,16 +399,16 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
     }
 
     public void beginCommit(Long l) {
-        System.out.println("Begin commit called on: " + l);
+        log.debug("Begin commit called on: " + l);
     }
 
     public void commit(Long l) {
-        System.out.println("Commit called on " + l);
+        log.debug("Commit called on " + l);
     }
 
     public List<Vertex> getVertices(String field, String identifier) {
         List<Vertex> vertices = new ArrayList<Vertex>();
-        GraphQuery query = this.graph.getGraph().query();
+        GraphQuery query = this.graph.query();
         query.has(field, identifier);
         Iterable<Vertex> iterable = query.vertices();
         for (Vertex v : iterable) {
@@ -485,7 +418,7 @@ public class BlueprintsState<T> implements IBackingMap<T>, Serializable, State {
     }
 
     public Vertex createObject(Map<String, Object> event) {
-        Vertex v = this.graph.getGraph().addVertex(null);
+        Vertex v = this.graph.addVertex(null);
         Double lat = (Double) event.get("LATITUDE");
         Double lon = (Double) event.get("LONGITUDE");
         Long time = (Long) event.get("TIME");
